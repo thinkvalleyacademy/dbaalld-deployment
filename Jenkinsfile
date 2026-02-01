@@ -7,50 +7,38 @@ pipeline {
             choices: ['dev', 'prod'],
             description: 'Deployment environment'
         )
+        booleanParam(
+            name: 'ROLLBACK',
+            defaultValue: false,
+            description: 'Rollback to previous image'
+        )
     }
 
     environment {
         DEPLOY_USER = 'dbadev01'
         DEPLOY_HOST = 'localhost'
-        APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+        APP_DIR     = '/opt/dbaalld01_project/deploy-dba_alld_project'
         COMPOSE     = 'docker compose -f docker-compose.app.yml'
     }
 
     stages {
 
-        stage('Checkout Frontend') {
+        stage('Checkout') {
             steps {
-                dir('frontend-src') {
-                    git branch: 'main',
-                        url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
-                }
+                checkout scm
             }
         }
 
-        stage('Checkout Backend') {
-            steps {
-                dir('backend-src') {
-                    git branch: 'main',
-                        url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
-                }
-            }
-        }
-
-        stage('Sync Code to Server') {
+        stage('Verify SSH') {
             steps {
                 sh """
-                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'mkdir -p ${APP_DIR}'
-
-                  rsync -az --delete frontend-src/ \
-                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend/
-
-                  rsync -az --delete backend-src/ \
-                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend/
+                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'whoami && docker version'
                 """
             }
         }
 
         stage('Build Images') {
+            when { expression { !params.ROLLBACK } }
             steps {
                 sh """
                   ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
@@ -73,6 +61,17 @@ pipeline {
                       --env-file env/common.env \
                       --env-file env/${ENV}.env \
                       up -d
+                  '
+                """
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh """
+                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+                    cd ${APP_DIR} &&
+                    docker ps
                   '
                 """
             }

@@ -1,0 +1,66 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # --------------------------
+  # JAVA BACKEND MONITORING
+  # --------------------------
+  - job_name: 'spring-boot'
+    metrics_path: '/dba-alld/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8081']
+
+  # --------------------------
+  # HTTP HEALTH MONITORING (Blackbox)
+  # --------------------------
+  - job_name: 'backend-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://backend:8081/dba-alld/actuator/health
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  - job_name: 'nginx-health'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - http://reverse-proxy:80/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+
+  # --------------------------
+  # MYSQL EXPORTER
+  # --------------------------
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+
+  # --------------------------
+  # CADVISOR
+  # --------------------------
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # --------------------------
+  # PROMETHEUS ITSELF
+  # --------------------------
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['prometheus:9090']
+

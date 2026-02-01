@@ -1,0 +1,5 @@
+[client]
+user=rwroot
+password=tvadev123#
+host=db
+port=3306

@@ -1,0 +1,15 @@
+# app code synced by Jenkins
+frontend/src/
+frontend/public/
+frontend/node_modules/
+
+backend/target/
+backend/*.jar
+
+# env secrets
+env/*.env
+secrets/
+
+# logs & runtime
+logs/
+volumes/
