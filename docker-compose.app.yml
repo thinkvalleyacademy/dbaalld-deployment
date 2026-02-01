@@ -8,7 +8,7 @@ services:
     restart: always
     command: --default-authentication-plugin=mysql_native_password
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      #MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
         #MYSQL_PASSWORD: ${MYSQL_PASSWORD}
@@ -36,10 +36,15 @@ services:
         #SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       APP_UPLOAD_BASE_PATH: ${APP_BASE_PATH}/backend/
-      SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
+        #SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
     env_file:
       - env/common.env
       - env/dev.env
+    command: >
+      sh -c "
+      export SPRING_DATASOURCE_PASSWORD=$(cat /run/secrets/db_password) &&
+      exec java -jar app.jar
+      "
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8081 || exit 1"]
       interval: 30s
