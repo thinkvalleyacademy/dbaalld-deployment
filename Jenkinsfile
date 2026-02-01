@@ -17,7 +17,7 @@ pipeline {
     environment {
         DEPLOY_USER = 'dbadev01'
         DEPLOY_HOST = 'localhost'
-        APP_DIR     = '/opt/dbaalld01_project/deploy-dba_alld_project'
+        APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
         COMPOSE     = 'docker compose -f docker-compose.app.yml'
     }
 
