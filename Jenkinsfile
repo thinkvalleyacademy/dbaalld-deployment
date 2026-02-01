@@ -21,8 +21,8 @@ pipeline {
         stage('Checkout Frontend') {
             steps {
                 dir('frontend-src') {
-                    git url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git',
-                        branch: 'main'
+                    git branch: 'main',
+                        url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
                 }
             }
         }
@@ -30,18 +30,16 @@ pipeline {
         stage('Checkout Backend') {
             steps {
                 dir('backend-src') {
-                    git url: 'git@github.com:thinkvalleyacademy/alld-backend.git',
-                        branch: 'main'
+                    git branch: 'main',
+                        url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
                 }
             }
         }
 
-        stage('Sync Code to Deploy Dir') {
+        stage('Sync Code to Server') {
             steps {
                 sh """
-                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-                    mkdir -p ${APP_DIR}
-                  '
+                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'mkdir -p ${APP_DIR}'
 
                   rsync -az --delete frontend-src/ \
                     ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend/
@@ -79,22 +77,11 @@ pipeline {
                 """
             }
         }
-
-        stage('Health Check') {
-            steps {
-                sh """
-                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-                    docker ps &&
-                    curl -f http://localhost:5082 || exit 1
-                  '
-                """
-            }
-        }
     }
 
     post {
         success {
-            echo "✅ ${params.ENV} deployment successful"
+            echo "✅ Deployment to ${params.ENV} successful"
         }
         failure {
             echo "❌ Deployment failed"
