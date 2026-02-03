@@ -1,15 +1,19 @@
-# app code synced by Jenkins
-frontend/src/
-frontend/public/
-frontend/node_modules/
+# Ignore everything inside frontend
+frontend/*
 
+# Allow only these two files
+!frontend/Dockerfile
+!frontend/nginx.conf.template
+
+# Backend build artifacts
 backend/target/
 backend/*.jar
 
-# env secrets
+# Env & secrets
 env/*.env
 secrets/
 
-# logs & runtime
+# Logs & runtime
 logs/
 volumes/
+
