@@ -1,51 +1,26 @@
 ############################
-# FRONTEND
+# RUNTIME SYNCED CODE
 ############################
 
-# Ignore runtime-synced app code only
 frontend/app/
-
-# Keep everything else in frontend
-!frontend/
-!frontend/Dockerfile
-!frontend/nginx.conf.template
-!frontend/src/
-!frontend/public/
-!frontend/package.json
-!frontend/package-lock.json
-!frontend/postcss.config.js
-!frontend/tailwind.config.js
-!frontend/README.md
-!frontend/docs/
-
-
-############################
-# BACKEND
-############################
-
-# Ignore runtime-synced app code only
 backend/app/
 
-# Ignore build outputs
+
+############################
+# BUILD OUTPUTS
+############################
+
 backend/target/
 backend/*.jar
 
-# Keep backend build & source
-!backend/Dockerfile
-!backend/src/
-!backend/pom.xml
-!backend/mvnw
-!backend/mvnw.cmd
-!backend/README.md
-!backend/assets/
-
 
 ############################
-# ENV & SECRETS
+# SECRETS / CERTS
 ############################
 
 env/*.env
 secrets/
+certs/
 
 
 ############################
