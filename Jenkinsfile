@@ -87,7 +87,7 @@ pipeline {
                     ${COMPOSE} \
                       --env-file env/common.env \
                       --env-file env/${ENV}.env \
-                      build \
+                      build --no-cache \
 	 	      --build-arg REACT_APP_PROFILE=${ENV} \
 		      frontend
                   '
