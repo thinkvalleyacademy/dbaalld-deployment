@@ -67,6 +67,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args: 
+       ENV: dev
     container_name: ${PROJECT_NAME}-frontend
     restart: always
     healthcheck:

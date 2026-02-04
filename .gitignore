@@ -1,19 +1,67 @@
-# Ignore everything inside frontend
-frontend/*
+############################
+# FRONTEND
+############################
 
-# Allow only these two files
+# Ignore runtime-synced app code only
+frontend/app/
+
+# Keep everything else in frontend
+!frontend/
 !frontend/Dockerfile
 !frontend/nginx.conf.template
+!frontend/src/
+!frontend/public/
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/postcss.config.js
+!frontend/tailwind.config.js
+!frontend/README.md
+!frontend/docs/
 
-# Backend build artifacts
+
+############################
+# BACKEND
+############################
+
+# Ignore runtime-synced app code only
+backend/app/
+
+# Ignore build outputs
 backend/target/
 backend/*.jar
 
-# Env & secrets
+# Keep backend build & source
+!backend/Dockerfile
+!backend/src/
+!backend/pom.xml
+!backend/mvnw
+!backend/mvnw.cmd
+!backend/README.md
+!backend/assets/
+
+
+############################
+# ENV & SECRETS
+############################
+
 env/*.env
 secrets/
 
-# Logs & runtime
+
+############################
+# RUNTIME / LOCAL DATA
+############################
+
 logs/
 volumes/
+backup.sql
+backup_before_prod_refactor_*.tar.gz
+
+
+############################
+# OS / TOOLING
+############################
+
+.DS_Store
+*.log
 

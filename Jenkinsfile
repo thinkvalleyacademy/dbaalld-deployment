@@ -42,10 +42,10 @@ pipeline {
                   ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'mkdir -p ${APP_DIR}'
 
                   rsync -az --delete frontend-src/ \
-                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend/
+                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend/app/
 
                   rsync -az --delete backend-src/ \
-                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend/
+                    ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend/app/
                 """
             }
         }
