@@ -25,21 +25,14 @@ services:
   backend:
     container_name: ${PROJECT_NAME}-backend
     restart: always
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE}
-      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/app/config/
       SPRING_DATASOURCE_URL: jdbc:mysql://db:${DB_CONTAINER_PORT}/${MYSQL_DATABASE}
       SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
         #SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       APP_UPLOAD_BASE_PATH: ${APP_BASE_PATH}/backend/
         #SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/db_password
-    env_file:
-      - env/common.env
-      - env/dev.env
     command: >
       sh -c "
       export SPRING_DATASOURCE_PASSWORD=$(cat /run/secrets/db_password) &&
@@ -53,7 +46,6 @@ services:
       start_period: 40s
     volumes:
       - ./volumes/backend/logs:/app/logs
-      - ./backend/config:/app/config:ro
       - ./backend/upload:${APP_BASE_PATH}/backend/upload
       - ./secrets/${ENV}/db_password:/run/secrets/db_password:ro
         #ports:
@@ -64,11 +56,6 @@ services:
       - app-network
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args: 
-       ENV: dev
     container_name: ${PROJECT_NAME}-frontend
     restart: always
     healthcheck:
@@ -76,13 +63,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-    env_file:
-      - env/common.env
-      - env/dev.env
-        #ports:
-        #- "${FRONTEND_HOST_PORT}:${FRONTEND_CONTAINER_PORT}"
-    volumes:
-      - ./frontend/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     networks:
       - app-network
 
