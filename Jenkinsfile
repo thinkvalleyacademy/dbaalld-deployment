@@ -2,7 +2,11 @@ pipeline {
   agent any
 
   parameters {
-    choice(name: 'ENV', choices: ['dev', 'prod'])
+    choice(
+      name: 'ENV',
+      choices: ['dev', 'prod'],
+      description: 'Deployment environment'
+    )
   }
 
   environment {
@@ -17,8 +21,8 @@ pipeline {
     stage('Resolve Environment') {
       steps {
         script {
-          env.FRONTEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
-          env.BACKEND_BRANCH  = params.ENV == 'prod' ? 'main' : 'main_dev'
+          env.FRONTEND_BRANCH = (params.ENV == 'prod') ? 'main' : 'main_dev'
+          env.BACKEND_BRANCH  = (params.ENV == 'prod') ? 'main' : 'main_dev'
 
           echo "🚀 ENV            : ${params.ENV}"
           echo "📦 Frontend branch: ${env.FRONTEND_BRANCH}"
@@ -58,15 +62,17 @@ pipeline {
       }
     }
 
-    stage('Build Images (rootless docker)') {
+    stage('Build Images (rootless docker on server)') {
       steps {
         sh """
           ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-            cd ${APP_DIR} &&
+            set -e
+            cd ${APP_DIR}
+
             TAG=${TAG} docker compose \
               --env-file env/common.env \
               --env-file env/${params.ENV}.env \
-              build
+              build backend frontend
           '
         """
       }
@@ -76,7 +82,9 @@ pipeline {
       steps {
         sh """
           ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-            cd ${APP_DIR} &&
+            set -e
+            cd ${APP_DIR}
+
             TAG=${TAG} docker compose \
               --env-file env/common.env \
               --env-file env/${params.ENV}.env \
@@ -89,7 +97,7 @@ pipeline {
 
   post {
     success {
-      echo "✅ ${params.ENV.toUpperCase()} deployment successful"
+      echo "✅ ${params.ENV.toUpperCase()} deployment successful (TAG=${TAG})"
     }
     failure {
       echo "❌ Deployment failed"
