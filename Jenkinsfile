@@ -14,14 +14,36 @@ pipeline {
         DEPLOY_HOST = 'localhost'
         APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
         COMPOSE     = 'docker compose -f docker-compose.app.yml'
+
+        // 🔑 Default branches (overridden below)
+        FRONTEND_BRANCH = 'main'
+        BACKEND_BRANCH  = 'main'
     }
 
     stages {
 
+        stage('Resolve Environment') {
+            steps {
+                script {
+                    if (params.ENV == 'dev') {
+                        env.FRONTEND_BRANCH = 'main_dev'
+                        env.BACKEND_BRANCH  = 'main_dev'
+                    } else if (params.ENV == 'prod') {
+                        env.FRONTEND_BRANCH = 'main'
+                        env.BACKEND_BRANCH  = 'main'
+                    }
+
+                    echo "🚀 ENV            : ${params.ENV}"
+                    echo "📦 Frontend branch: ${env.FRONTEND_BRANCH}"
+                    echo "📦 Backend branch : ${env.BACKEND_BRANCH}"
+                }
+            }
+        }
+
         stage('Checkout Frontend') {
             steps {
                 dir('frontend-src') {
-                    git branch: 'main',
+                    git branch: env.FRONTEND_BRANCH,
                         url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
                 }
             }
@@ -30,7 +52,7 @@ pipeline {
         stage('Checkout Backend') {
             steps {
                 dir('backend-src') {
-                    git branch: 'main',
+                    git branch: env.BACKEND_BRANCH,
                         url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
                 }
             }
@@ -39,13 +61,22 @@ pipeline {
         stage('Sync Code to Server') {
             steps {
                 sh """
-                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'mkdir -p ${APP_DIR}'
+                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+                    mkdir -p ${APP_DIR}/frontend/app
+                    mkdir -p ${APP_DIR}/backend/app
+                  '
 
                   rsync -az --delete frontend-src/ \
                     ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend/app/
 
                   rsync -az --delete backend-src/ \
                     ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend/app/
+
+                  # 🛡️ Safety: remove nested git repos if any
+                  ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+                    rm -rf ${APP_DIR}/frontend/app/.git
+                    rm -rf ${APP_DIR}/backend/app/.git
+                  '
                 """
             }
         }
@@ -81,10 +112,11 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment to ${params.ENV} successful"
+            echo "✅ ${params.ENV.toUpperCase()} deployment successful"
         }
         failure {
-            echo "❌ Deployment failed"
+            echo "❌ ${params.ENV.toUpperCase()} deployment failed"
         }
     }
 }
+
