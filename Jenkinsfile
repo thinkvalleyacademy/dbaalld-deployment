@@ -14,10 +14,6 @@ pipeline {
         DEPLOY_HOST = 'localhost'
         APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
         COMPOSE     = 'docker compose -f docker-compose.app.yml'
-
-        // 🔑 Default branches (overridden below)
-        FRONTEND_BRANCH = 'main'
-        BACKEND_BRANCH  = 'main'
     }
 
     stages {
@@ -31,7 +27,9 @@ pipeline {
                     } else if (params.ENV == 'prod') {
                         env.FRONTEND_BRANCH = 'main'
                         env.BACKEND_BRANCH  = 'main'
-                    }
+                    }else{
+			error("Unknown ENV: ${params.ENV}")	
+		}
 
                     echo "🚀 ENV            : ${params.ENV}"
                     echo "📦 Frontend branch: ${env.FRONTEND_BRANCH}"
