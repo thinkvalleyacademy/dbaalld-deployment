@@ -21,6 +21,9 @@ services:
 
   backend:
     image: dba-backend:${TAG}
+    build:
+      context: ./backend-src
+      dockerfile: Dockerfile
     container_name: ${PROJECT_NAME}-backend
     restart: always
     environment:
@@ -51,6 +54,9 @@ services:
 
   frontend:
     image: dba-frontend:${TAG}
+    build:
+      context: ./frontend-src
+      dockerfile: Dockerfile
     container_name: ${PROJECT_NAME}-frontend
     restart: always
     healthcheck:
@@ -62,7 +68,7 @@ services:
       - app-network
 
   reverse-proxy:
-    image: ${PROXY_IMAGE}
+    image: ${PROXY_IMAGE} 
     container_name: ${PROJECT_NAME}-proxy
     restart: always
     healthcheck:
