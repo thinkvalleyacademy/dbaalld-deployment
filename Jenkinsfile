@@ -79,8 +79,8 @@ pipeline {
 
             docker compose \
               -f docker-compose.app.yml \
-              --env-file env/common.env \
-              --env-file env/${ENV}.env \
+              --env-file ${APP_DIR}/env/common.env \
+              --env-file ${APP_DIR}/env/${ENV}.env \
               build
           '
         '''
@@ -99,8 +99,8 @@ pipeline {
 
             docker compose \
               -f docker-compose.app.yml \
-              --env-file env/common.env \
-              --env-file env/${ENV}.env \
+              --env-file ${APP_DIR}/env/common.env \
+              --env-file ${APP_DIR}/env/${ENV}.env \
               up -d
           '
         '''
@@ -108,16 +108,20 @@ pipeline {
     }
   }
 
-  post {
-    success {
-      echo "✅ ${params.ENV.toUpperCase()} deployment successful"
-    }
-    failure {
-      echo "❌ Deployment failed"
-    }
-    always {
+post {
+  success {
+    echo "✅ ${params.ENV.toUpperCase()} deployment successful"
+  }
+  failure {
+    echo "❌ Deployment failed"
+  }
+  always {
+    node('built-in') {
       cleanWs()
     }
   }
+}
+
+
 }
 
