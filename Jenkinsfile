@@ -5,7 +5,6 @@ pipeline {
     disableConcurrentBuilds()
     timeout(time: 30, unit: 'MINUTES')
     timestamps()
-    ansiColor('xterm')
   }
 
   parameters {
@@ -25,7 +24,7 @@ pipeline {
 
   stages {
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Resolve Environment') {
       agent { label 'built-in' }
       steps {
@@ -34,18 +33,18 @@ pipeline {
           env.BACKEND_BRANCH  = params.ENV == 'prod' ? 'main' : 'main_dev'
 
           echo """
-          ===============================
-          ENV            : ${params.ENV}
-          Frontend branch: ${env.FRONTEND_BRANCH}
-          Backend branch : ${env.BACKEND_BRANCH}
-          Image TAG      : ${TAG}
-          ===============================
-          """
+================================
+ENV            : ${params.ENV}
+Frontend branch: ${env.FRONTEND_BRANCH}
+Backend branch : ${env.BACKEND_BRANCH}
+Image TAG      : ${TAG}
+================================
+"""
         }
       }
     }
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Checkout Repositories') {
       agent { label 'built-in' }
       steps {
@@ -61,7 +60,7 @@ pipeline {
       }
     }
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Sync Code to Server') {
       agent { label 'built-in' }
       steps {
@@ -76,66 +75,66 @@ pipeline {
       }
     }
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Pre-flight Validation') {
       agent { label 'built-in' }
       steps {
         sh """
-        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
-          set -e
-          cd ${APP_DIR}
+ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+set -e
+cd ${APP_DIR}
 
-          echo "✔ Checking env files"
-          test -f env/common.env
-          test -f env/${ENV}.env
+echo "✔ Checking env files"
+test -f env/common.env
+test -f env/${ENV}.env
 
-          echo "✔ Checking docker"
-          docker --version
-          docker compose version
-        EOF
-        """
+echo "✔ Checking docker"
+docker --version
+docker compose version
+'
+"""
       }
     }
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Build Docker Images') {
       agent { label 'built-in' }
       steps {
         sh """
-        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
-          set -e
-          cd ${APP_DIR}
+ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+set -e
+cd ${APP_DIR}
 
-          export TAG=${TAG}
+export TAG=${TAG}
 
-          docker compose \
-            -f docker-compose.app.yml \
-            --env-file ${APP_DIR}/env/common.env \
-            --env-file ${APP_DIR}/env/${ENV}.env \
-            build --pull
-        EOF
-        """
+docker compose \
+  -f docker-compose.app.yml \
+  --env-file ${APP_DIR}/env/common.env \
+  --env-file ${APP_DIR}/env/${ENV}.env \
+  build --pull
+'
+"""
       }
     }
 
-    /* ------------------------------------------------------ */
+    /* ===================================================== */
     stage('Deploy') {
       agent { label 'built-in' }
       steps {
         sh """
-        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
-          set -e
-          cd ${APP_DIR}
+ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+set -e
+cd ${APP_DIR}
 
-          export TAG=${TAG}
+export TAG=${TAG}
 
-          docker compose \
-            -f docker-compose.app.yml \
-            --env-file ${APP_DIR}/env/common.env \
-            --env-file ${APP_DIR}/env/${ENV}.env \
-            up -d --remove-orphans
-        EOF
-        """
+docker compose \
+  -f docker-compose.app.yml \
+  --env-file ${APP_DIR}/env/common.env \
+  --env-file ${APP_DIR}/env/${ENV}.env \
+  up -d --remove-orphans
+'
+"""
       }
     }
   }
@@ -156,4 +155,3 @@ pipeline {
     }
   }
 }
-
