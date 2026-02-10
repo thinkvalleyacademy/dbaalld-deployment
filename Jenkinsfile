@@ -5,6 +5,7 @@ pipeline {
     disableConcurrentBuilds()
     timeout(time: 30, unit: 'MINUTES')
     timestamps()
+    ansiColor('xterm')
   }
 
   parameters {
@@ -24,6 +25,7 @@ pipeline {
 
   stages {
 
+    /* ------------------------------------------------------ */
     stage('Resolve Environment') {
       agent { label 'built-in' }
       steps {
@@ -31,14 +33,19 @@ pipeline {
           env.FRONTEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
           env.BACKEND_BRANCH  = params.ENV == 'prod' ? 'main' : 'main_dev'
 
-          echo "ENV            : ${params.ENV}"
-          echo "Frontend branch: ${env.FRONTEND_BRANCH}"
-          echo "Backend branch : ${env.BACKEND_BRANCH}"
-          echo "Image TAG      : ${TAG}"
+          echo """
+          ===============================
+          ENV            : ${params.ENV}
+          Frontend branch: ${env.FRONTEND_BRANCH}
+          Backend branch : ${env.BACKEND_BRANCH}
+          Image TAG      : ${TAG}
+          ===============================
+          """
         }
       }
     }
 
+    /* ------------------------------------------------------ */
     stage('Checkout Repositories') {
       agent { label 'built-in' }
       steps {
@@ -54,10 +61,12 @@ pipeline {
       }
     }
 
-    stage('Sync Code to App Directory') {
+    /* ------------------------------------------------------ */
+    stage('Sync Code to Server') {
       agent { label 'built-in' }
       steps {
         sh '''
+          set -e
           rsync -az --delete frontend-src/ \
             ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend-src/
 
@@ -67,61 +76,84 @@ pipeline {
       }
     }
 
-    stage('Build Docker Images (limited)') {
+    /* ------------------------------------------------------ */
+    stage('Pre-flight Validation') {
       agent { label 'built-in' }
       steps {
-        sh '''
-          ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-            set -e
-            cd ${APP_DIR}
+        sh """
+        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
+          set -e
+          cd ${APP_DIR}
 
-            export TAG=${TAG}
+          echo "✔ Checking env files"
+          test -f env/common.env
+          test -f env/${ENV}.env
 
-            docker compose \
-              -f docker-compose.app.yml \
-              --env-file ${APP_DIR}/env/common.env \
-              --env-file ${APP_DIR}/env/${ENV}.env \
-              build
-          '
-        '''
+          echo "✔ Checking docker"
+          docker --version
+          docker compose version
+        EOF
+        """
       }
     }
 
+    /* ------------------------------------------------------ */
+    stage('Build Docker Images') {
+      agent { label 'built-in' }
+      steps {
+        sh """
+        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
+          set -e
+          cd ${APP_DIR}
+
+          export TAG=${TAG}
+
+          docker compose \
+            -f docker-compose.app.yml \
+            --env-file ${APP_DIR}/env/common.env \
+            --env-file ${APP_DIR}/env/${ENV}.env \
+            build --pull
+        EOF
+        """
+      }
+    }
+
+    /* ------------------------------------------------------ */
     stage('Deploy') {
       agent { label 'built-in' }
       steps {
-        sh '''
-          ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-            set -e
-            cd ${APP_DIR}
+        sh """
+        ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'EOF'
+          set -e
+          cd ${APP_DIR}
 
-            export TAG=${TAG}
+          export TAG=${TAG}
 
-            docker compose \
-              -f docker-compose.app.yml \
-              --env-file ${APP_DIR}/env/common.env \
-              --env-file ${APP_DIR}/env/${ENV}.env \
-              up -d
-          '
-        '''
+          docker compose \
+            -f docker-compose.app.yml \
+            --env-file ${APP_DIR}/env/common.env \
+            --env-file ${APP_DIR}/env/${ENV}.env \
+            up -d --remove-orphans
+        EOF
+        """
       }
     }
   }
 
-post {
-  success {
-    echo "✅ ${params.ENV.toUpperCase()} deployment successful"
-  }
-  failure {
-    echo "❌ Deployment failed"
-  }
-  always {
-    node('built-in') {
-      cleanWs()
+  post {
+    success {
+      echo "✅ ${params.ENV.toUpperCase()} deployment successful"
+    }
+
+    failure {
+      echo "❌ Deployment failed"
+    }
+
+    always {
+      node('built-in') {
+        cleanWs()
+      }
     }
   }
-}
-
-
 }
 
