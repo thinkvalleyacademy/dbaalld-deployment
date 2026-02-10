@@ -1,44 +1,52 @@
 pipeline {
-  agent any
+  agent none
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+    timestamps()
+  }
 
   parameters {
-    choice(name: 'ENV', choices: ['dev', 'prod'])
+    choice(
+      name: 'ENV',
+      choices: ['dev', 'prod'],
+      description: 'Deployment environment'
+    )
   }
 
   environment {
     DEPLOY_USER = 'dbadev01'
     DEPLOY_HOST = 'localhost'
     APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
-    TAG         = "${env.BUILD_NUMBER}"
+    TAG         = "${BUILD_NUMBER}"
   }
 
   stages {
 
     stage('Resolve Environment') {
+      agent { label 'built-in' }
       steps {
         script {
           env.FRONTEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
           env.BACKEND_BRANCH  = params.ENV == 'prod' ? 'main' : 'main_dev'
 
-          echo "🚀 ENV            : ${params.ENV}"
-          echo "📦 Frontend branch: ${env.FRONTEND_BRANCH}"
-          echo "📦 Backend branch : ${env.BACKEND_BRANCH}"
-          echo "🏷️  Image TAG     : ${TAG}"
+          echo "ENV            : ${params.ENV}"
+          echo "Frontend branch: ${env.FRONTEND_BRANCH}"
+          echo "Backend branch : ${env.BACKEND_BRANCH}"
+          echo "Image TAG      : ${TAG}"
         }
       }
     }
 
-    stage('Checkout Frontend') {
+    stage('Checkout Repositories') {
+      agent { label 'built-in' }
       steps {
         dir('frontend-src') {
           git branch: env.FRONTEND_BRANCH,
               url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
         }
-      }
-    }
 
-    stage('Checkout Backend') {
-      steps {
         dir('backend-src') {
           git branch: env.BACKEND_BRANCH,
               url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
@@ -46,49 +54,56 @@ pipeline {
       }
     }
 
-    stage('Sync Code to Server') {
+    stage('Sync Code to App Directory') {
+      agent { label 'built-in' }
       steps {
-        sh """
+        sh '''
           rsync -az --delete frontend-src/ \
             ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend-src/
 
           rsync -az --delete backend-src/ \
             ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend-src/
-        """
+        '''
       }
     }
 
-    stage('Build Images (on server, rootless docker)') {
+    stage('Build Docker Images (limited)') {
+      agent { label 'built-in' }
       steps {
-        sh """
+        sh '''
           ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
             set -e
             cd ${APP_DIR}
 
-            TAG=${TAG} docker compose \
+            export TAG=${TAG}
+
+            docker compose \
               -f docker-compose.app.yml \
               --env-file env/common.env \
-              --env-file env/${params.ENV}.env \
+              --env-file env/${ENV}.env \
               build
           '
-        """
+        '''
       }
     }
 
     stage('Deploy') {
+      agent { label 'built-in' }
       steps {
-        sh """
+        sh '''
           ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
             set -e
             cd ${APP_DIR}
 
-            TAG=${TAG} docker compose \
+            export TAG=${TAG}
+
+            docker compose \
               -f docker-compose.app.yml \
               --env-file env/common.env \
-              --env-file env/${params.ENV}.env \
+              --env-file env/${ENV}.env \
               up -d
           '
-        """
+        '''
       }
     }
   }
@@ -99,6 +114,9 @@ pipeline {
     }
     failure {
       echo "❌ Deployment failed"
+    }
+    always {
+      cleanWs()
     }
   }
 }
