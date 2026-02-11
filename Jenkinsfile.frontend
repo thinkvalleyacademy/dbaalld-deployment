@@ -1,0 +1,87 @@
+pipeline {
+  agent { label 'built-in' }
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+    timestamps()
+  }
+
+  parameters {
+    choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Environment')
+  }
+
+  environment {
+    DEPLOY_USER = 'dbadev01'
+    DEPLOY_HOST = 'localhost'
+    APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    TAG         = "${BUILD_NUMBER}"
+  }
+
+  stages {
+
+    stage('Resolve Branch') {
+      steps {
+        script {
+          env.FRONTEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
+          echo "Using frontend branch: ${env.FRONTEND_BRANCH}"
+        }
+      }
+    }
+
+    stage('Checkout Frontend') {
+      steps {
+        dir('frontend-src') {
+          git branch: env.FRONTEND_BRANCH,
+              url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
+        }
+      }
+    }
+
+    stage('Sync Frontend') {
+      steps {
+        sh '''
+          rsync -az --delete frontend-src/ \
+            ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/frontend-src/
+        '''
+      }
+    }
+
+    stage('Build Frontend Image') {
+      steps {
+        sh """
+ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+cd ${APP_DIR}
+export TAG=${TAG}
+
+docker compose \
+  -p dba \
+  -f docker-compose.frontend.yml \
+  --env-file env/common.env \
+  --env-file env/${ENV}.env \
+  build
+'
+"""
+      }
+    }
+
+    stage('Deploy Frontend') {
+      steps {
+        sh """
+ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
+cd ${APP_DIR}
+export TAG=${TAG}
+
+docker compose \
+  -p dba \
+  -f docker-compose.frontend.yml \
+  --env-file env/common.env \
+  --env-file env/${ENV}.env \
+  up -d
+'
+"""
+      }
+    }
+  }
+}
+

@@ -1,0 +1,25 @@
+name: ${PROJECT_NAME}-proxy
+
+services:
+  reverse-proxy:
+    image: ${PROXY_IMAGE}
+    container_name: ${PROJECT_NAME}-proxy
+    restart: always
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./reverse-proxy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certs:/etc/nginx/certs:ro
+    ports:
+      - "${PROXY_HOST_PORT}:${PROXY_CONTAINER_PORT}"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    name: ${APP_NETWORK}
+
