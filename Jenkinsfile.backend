@@ -16,10 +16,18 @@ pipeline {
     DEPLOY_HOST = 'localhost'
     APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
     TAG         = "${BUILD_NUMBER}"
-    BACKEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
   }
 
   stages {
+
+    stage('Resolve Branch') {
+      steps {
+        script {
+          env.BACKEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
+          echo "Using backend branch: ${env.BACKEND_BRANCH}"
+        }
+      }
+    }
 
     stage('Checkout Backend') {
       steps {
@@ -47,6 +55,7 @@ cd ${APP_DIR}
 export TAG=${TAG}
 
 docker compose \
+  -p dba \
   -f docker-compose.backend.yml \
   --env-file env/common.env \
   --env-file env/${ENV}.env \
@@ -64,6 +73,7 @@ cd ${APP_DIR}
 export TAG=${TAG}
 
 docker compose \
+  -p dba \
   -f docker-compose.backend.yml \
   --env-file env/common.env \
   --env-file env/${ENV}.env \
