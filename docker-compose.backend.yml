@@ -1,0 +1,39 @@
+name: ${PROJECT_NAME}-backend
+
+services:
+  backend:
+    image: dba-backend:${TAG}
+    build:
+      context: ./backend-src
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}-backend
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILE}
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:${DB_CONTAINER_PORT}/${MYSQL_DATABASE}
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      APP_UPLOAD_BASE_PATH: /app/uploads
+    command: >
+      sh -c "
+      export SPRING_DATASOURCE_PASSWORD=$(cat /run/secrets/db_password) &&
+      exec java -jar app.jar
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8081 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./volumes/backend/uploads:/app/uploads
+      - ./volumes/backend/logs:/app/logs
+      - ./secrets/${ENV}/db_password:/run/secrets/db_password:ro
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    name: ${APP_NETWORK}
+

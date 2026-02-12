@@ -1,0 +1,23 @@
+name: ${PROJECT_NAME}-frontend
+
+services:
+  frontend:
+    image: dba-frontend:${TAG}
+    build:
+      context: ./frontend-src
+      dockerfile: Dockerfile
+    container_name: ${PROJECT_NAME}-frontend
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true
+    name: ${APP_NETWORK}
+

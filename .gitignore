@@ -1,19 +1,42 @@
-# Ignore everything inside frontend
-frontend/*
+############################
+# RUNTIME SYNCED CODE
+############################
 
-# Allow only these two files
-!frontend/Dockerfile
-!frontend/nginx.conf.template
+frontend/app/
+backend/app/
 
-# Backend build artifacts
+
+############################
+# BUILD OUTPUTS
+############################
+
 backend/target/
 backend/*.jar
 
-# Env & secrets
+
+############################
+# SECRETS / CERTS
+############################
+
 env/*.env
 secrets/
+certs/
 
-# Logs & runtime
+
+############################
+# RUNTIME / LOCAL DATA
+############################
+
 logs/
 volumes/
+backup.sql
+backup_before_prod_refactor_*.tar.gz
+
+
+############################
+# OS / TOOLING
+############################
+
+.DS_Store
+*.log
 
