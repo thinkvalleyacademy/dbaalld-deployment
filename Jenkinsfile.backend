@@ -8,18 +8,24 @@ pipeline {
   }
 
   parameters {
-    choice(name: 'PROMOTE_TO', choices: ['dev', 'preprod'], description: 'Target environment')
+    choice(
+      name: 'PROMOTE_TO',
+      choices: ['dev', 'preprod'],
+      description: 'Target environment'
+    )
   }
 
   environment {
-    APP_DIR = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    DOCKER_HOST = 'unix:///run/user/1005/docker.sock'
   }
 
   stages {
 
-    stage('Checkout') {
+    stage('Checkout Code (main branch)') {
       steps {
-        checkout scm
+        git branch: 'main',
+            url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
       }
     }
 
@@ -30,15 +36,21 @@ pipeline {
             script: "git rev-parse --short HEAD",
             returnStdout: true
           ).trim()
+
           echo "Using image tag: ${env.IMAGE_TAG}"
         }
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Docker Connectivity Test') {
+      steps {
+        sh 'docker ps'
+      }
+    }
+
+    stage('Build Docker Image (Once)') {
       steps {
         sh """
-          cd ${APP_DIR}/backend-src
           docker build -t dba-backend:${IMAGE_TAG} .
         """
       }
@@ -57,6 +69,7 @@ pipeline {
             -f docker-compose.backend.yml \
             up -d
         """
+        echo "Deployed ${IMAGE_TAG} to DEV"
       }
     }
 
@@ -82,6 +95,7 @@ pipeline {
             -f docker-compose.backend.yml \
             up -d
         """
+        echo "Deployed ${IMAGE_TAG} to PREPROD"
       }
     }
   }
