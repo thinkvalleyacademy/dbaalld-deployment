@@ -1,9 +1,6 @@
-name: ${PROJECT_NAME}-db
-
 services:
   db:
     image: ${MYSQL_IMAGE}
-    container_name: ${PROJECT_NAME}-db
     restart: always
     command: --default-authentication-plugin=mysql_native_password
     environment:
@@ -12,15 +9,17 @@ services:
       MYSQL_PASSWORD_FILE: /run/secrets/db_password
       MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_password
     volumes:
-      - ./volumes/mysql:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
       - ./secrets/${ENV}/db_password:/run/secrets/db_password:ro
     ports:
       - "${DB_HOST_PORT}:${DB_CONTAINER_PORT}"
     networks:
       - app-network
 
+volumes:
+  mysql-data:
+    name: ${COMPOSE_PROJECT_NAME}_mysql-data
+
 networks:
   app-network:
-    external: true
-    name: ${APP_NETWORK}
 
