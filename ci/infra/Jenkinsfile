@@ -1,0 +1,99 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+    timestamps()
+  }
+
+  parameters {
+    choice(
+      name: 'ENV',
+      choices: ['dev', 'preprod'],
+      description: 'Target environment'
+    )
+
+    choice(
+      name: 'ACTION',
+      choices: ['deploy-db', 'deploy-proxy', 'deploy-all', 'restart', 'destroy'],
+      description: 'Infrastructure action'
+    )
+  }
+
+  environment {
+    APP_DIR = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+  }
+
+  stages {
+
+    stage('Deploy MySQL') {
+      when {
+        expression { params.ACTION == 'deploy-db' || params.ACTION == 'deploy-all' }
+      }
+      steps {
+        sh """
+          cd ${APP_DIR}
+          docker compose \
+            --project-name dba-${ENV} \
+            --env-file env/${ENV}.env \
+            -f docker-compose.db.yml \
+            up -d
+        """
+      }
+    }
+
+    stage('Deploy Reverse Proxy') {
+      when {
+        expression { params.ACTION == 'deploy-proxy' || params.ACTION == 'deploy-all' }
+      }
+      steps {
+        sh """
+          cd ${APP_DIR}
+          docker compose \
+            --project-name dba-${ENV} \
+            --env-file env/${ENV}.env \
+            -f docker-compose.proxy.yml \
+            up -d
+        """
+      }
+    }
+
+    stage('Restart Environment') {
+      when {
+        expression { params.ACTION == 'restart' }
+      }
+      steps {
+        sh """
+          cd ${APP_DIR}
+          docker compose \
+            --project-name dba-${ENV} \
+            restart
+        """
+      }
+    }
+
+    stage('Destroy Environment') {
+      when {
+        expression { params.ACTION == 'destroy' }
+      }
+      steps {
+        input message: "Are you sure you want to destroy ${ENV} infrastructure?"
+        sh """
+          cd ${APP_DIR}
+          docker compose \
+            --project-name dba-${ENV} \
+            down
+        """
+      }
+    }
+
+    stage('Show Running Containers') {
+      steps {
+        sh "docker ps | grep dba-${ENV} || true"
+      }
+    }
+
+  }
+}
+
