@@ -1,0 +1,67 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+    timestamps()
+  }
+
+  environment {
+    APP_DIR = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Set Image Tag') {
+      steps {
+        script {
+          env.IMAGE_TAG = sh(
+            script: "git rev-parse --short HEAD",
+            returnStdout: true
+          ).trim()
+
+          echo "Branch: ${env.BRANCH_NAME}"
+          echo "Image tag: ${env.IMAGE_TAG}"
+        }
+      }
+    }
+
+    stage('Run Unit Tests') {
+      steps {
+        sh 'mvn clean test'
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh """
+          docker build -t dba-backend:${BRANCH_NAME}-${IMAGE_TAG} .
+        """
+      }
+    }
+
+    stage('Deploy to DEV (main only)') {
+      when {
+        branch 'main'
+      }
+      steps {
+        sh """
+          cd ${APP_DIR}
+          TAG=${IMAGE_TAG} docker compose \
+            --project-name dba-dev \
+            --env-file env/dev.env \
+            -f docker-compose.backend.yml \
+            up -d
+        """
+      }
+    }
+  }
+}
+
