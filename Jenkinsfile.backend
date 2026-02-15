@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'built-in' }
+  agent any
 
   options {
     disableConcurrentBuilds()
@@ -8,78 +8,94 @@ pipeline {
   }
 
   parameters {
-    choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Environment')
+    choice(
+      name: 'PROMOTE_TO',
+      choices: ['dev', 'preprod'],
+      description: 'Target environment'
+    )
   }
 
   environment {
-    DEPLOY_USER = 'dbadev01'
-    DEPLOY_HOST = 'localhost'
     APP_DIR     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
-    TAG         = "${BUILD_NUMBER}"
+    DOCKER_HOST = 'unix:///run/user/1005/docker.sock'
   }
 
   stages {
 
-    stage('Resolve Branch') {
+    stage('Checkout Code (main branch)') {
+      steps {
+        git branch: 'main',
+            url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
+      }
+    }
+
+    stage('Set Image Tag') {
       steps {
         script {
-          env.BACKEND_BRANCH = params.ENV == 'prod' ? 'main' : 'main_dev'
-          echo "Using backend branch: ${env.BACKEND_BRANCH}"
+          env.IMAGE_TAG = sh(
+            script: "git rev-parse --short HEAD",
+            returnStdout: true
+          ).trim()
+
+          echo "Using image tag: ${env.IMAGE_TAG}"
         }
       }
     }
 
-    stage('Checkout Backend') {
+    stage('Docker Connectivity Test') {
       steps {
-        dir('backend-src') {
-          git branch: env.BACKEND_BRANCH,
-              url: 'git@github.com:thinkvalleyacademy/alld-backend.git'
-        }
+        sh 'docker ps'
       }
     }
 
-    stage('Sync Backend') {
-      steps {
-        sh '''
-          rsync -az --delete backend-src/ \
-            ${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/backend-src/
-        '''
-      }
-    }
-
-    stage('Build Backend Image') {
+    stage('Build Docker Image (Once)') {
       steps {
         sh """
-ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-cd ${APP_DIR}
-export TAG=${TAG}
-
-docker compose \
-  -p dba \
-  -f docker-compose.backend.yml \
-  --env-file env/common.env \
-  --env-file env/${ENV}.env \
-  build
-'
-"""
+          docker build -t dba-backend:${IMAGE_TAG} .
+        """
       }
     }
 
-    stage('Deploy Backend') {
+    stage('Deploy to DEV') {
+      when {
+        expression { params.PROMOTE_TO == 'dev' }
+      }
       steps {
         sh """
-ssh ${DEPLOY_USER}@${DEPLOY_HOST} '
-cd ${APP_DIR}
-export TAG=${TAG}
+          cd ${APP_DIR}
+          TAG=${IMAGE_TAG} docker compose \
+            --project-name dba-dev \
+            --env-file env/dev.env \
+            -f docker-compose.backend.yml \
+            up -d
+        """
+        echo "Deployed ${IMAGE_TAG} to DEV"
+      }
+    }
 
-docker compose \
-  -p dba \
-  -f docker-compose.backend.yml \
-  --env-file env/common.env \
-  --env-file env/${ENV}.env \
-  up -d
-'
-"""
+    stage('Manual Approval for PREPROD') {
+      when {
+        expression { params.PROMOTE_TO == 'preprod' }
+      }
+      steps {
+        input message: "Promote image ${IMAGE_TAG} to PREPROD?"
+      }
+    }
+
+    stage('Deploy to PREPROD') {
+      when {
+        expression { params.PROMOTE_TO == 'preprod' }
+      }
+      steps {
+        sh """
+          cd ${APP_DIR}
+          TAG=${IMAGE_TAG} docker compose \
+            --project-name dba-preprod \
+            --env-file env/preprod.env \
+            -f docker-compose.backend.yml \
+            up -d
+        """
+        echo "Deployed ${IMAGE_TAG} to PREPROD"
       }
     }
   }
