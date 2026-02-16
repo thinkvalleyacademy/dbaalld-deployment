@@ -1,10 +1,9 @@
-name: ${PROJECT_NAME}-proxy
-
 services:
   reverse-proxy:
-    image: ${PROXY_IMAGE}
-    container_name: ${PROJECT_NAME}-proxy
+    image: nginx:stable-alpine
     restart: always
+    environment:
+      PROXY_CONTAINER_PORT: ${PROXY_CONTAINER_PORT}
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -20,6 +19,4 @@ services:
 
 networks:
   app-network:
-    external: true
-    name: ${APP_NETWORK}
 

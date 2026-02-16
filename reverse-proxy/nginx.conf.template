@@ -1,19 +1,20 @@
 server {
 
-    # note: this server is multi user apps running. Dont run your application on port 80 or 443 
-
 	#listen 4082; #enable this when you want to run on IP:port with real domain
     #listen 5082 ssl; #enable this when you want to run on IP:port with ssl (testing pourpose only)
    
-    listen 4082 ssl;
-    listen [::]:4082 ssl;
+    #listen 4082;
+    #listen [::]:4082;
+
+    listen ${PROXY_CONTAINER_PORT};
+    listen [::]:${PROXY_CONTAINER_PORT};
 
     server_name _;
 
     client_max_body_size 50M;
 
-    ssl_certificate     /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    #ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    #ssl_certificate_key /etc/nginx/certs/privkey.pem;
 
     # ===============================
     # FILES / IMAGES (ADD CONTEXT)
