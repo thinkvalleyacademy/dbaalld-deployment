@@ -35,8 +35,8 @@ pipeline {
         sh """
           cd ${APP_DIR}
           docker compose \
-            --project-name dba-${ENV} \
-            --env-file env/${ENV}.env \
+            --project-name dba-${params.ENV} \
+            --env-file env/${params.ENV}.env \
             -f docker-compose.db.yml \
             up -d
         """
@@ -51,8 +51,8 @@ pipeline {
         sh """
           cd ${APP_DIR}
           docker compose \
-            --project-name dba-${ENV} \
-            --env-file env/${ENV}.env \
+            --project-name dba-${params.ENV} \
+            --env-file env/${params.ENV}.env \
             -f docker-compose.proxy.yml \
             up -d
         """
@@ -67,7 +67,7 @@ pipeline {
         sh """
           cd ${APP_DIR}
           docker compose \
-            --project-name dba-${ENV} \
+            --project-name dba-${params.ENV} \
             restart
         """
       }
@@ -78,11 +78,11 @@ pipeline {
         expression { params.ACTION == 'destroy' }
       }
       steps {
-        input message: "Are you sure you want to destroy ${ENV} infrastructure?"
+        input message: "Are you sure you want to destroy ${params.ENV} infrastructure?"
         sh """
           cd ${APP_DIR}
           docker compose \
-            --project-name dba-${ENV} \
+            --project-name dba-${params.ENV} \
             down
         """
       }
@@ -90,10 +90,9 @@ pipeline {
 
     stage('Show Running Containers') {
       steps {
-        sh "docker ps | grep dba-${ENV} || true"
+        sh "docker ps | grep dba-${params.ENV} || true"
       }
     }
-
   }
 }
 
