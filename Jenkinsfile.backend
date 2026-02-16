@@ -50,56 +50,27 @@ pipeline {
 
     stage('Build Docker Image (Once)') {
       steps {
-        sh """
-          docker build -t dba-backend:${IMAGE_TAG} .
-        """
+        sh "docker build -t dba-backend:${IMAGE_TAG} ."
       }
     }
 
-    stage('Deploy to DEV') {
-      when {
-        expression { params.PROMOTE_TO == 'dev' }
-      }
+    stage('Deploy') {
       steps {
-        sh """
-          cd ${APP_DIR}
-          TAG=${IMAGE_TAG} docker compose \
-            --project-name dba-dev \
-            --env-file env/dev.env \
-            -f docker-compose.backend.yml \
-            up -d
-        """
-        echo "Deployed ${IMAGE_TAG} to DEV"
-      }
-    }
+        script {
+          def projectName = params.PROMOTE_TO == 'dev' ? 'dba-dev' : 'dba-preprod'
+          def envFile     = params.PROMOTE_TO == 'dev' ? 'env/dev.env' : 'env/preprod.env'
 
-stage('Manual Approval for PREPROD') {
-  when {
-    expression { params.PROMOTE_TO == 'preprod' }
-  }
-  agent none
-  steps {
-    input(
-      message: "Promote image ${IMAGE_TAG} to PREPROD?",
-      ok: "Deploy to PREPROD"
-    )
-  }
-}
+          sh """
+            cd ${APP_DIR}
+            TAG=${IMAGE_TAG} docker compose \
+              --project-name ${projectName} \
+              --env-file ${envFile} \
+              -f docker-compose.backend.yml \
+              up -d
+          """
 
-    stage('Deploy to PREPROD') {
-      when {
-        expression { params.PROMOTE_TO == 'preprod' }
-      }
-      steps {
-        sh """
-          cd ${APP_DIR}
-          TAG=${IMAGE_TAG} docker compose \
-            --project-name dba-preprod \
-            --env-file env/preprod.env \
-            -f docker-compose.backend.yml \
-            up -d
-        """
-        echo "Deployed ${IMAGE_TAG} to PREPROD"
+          echo "Deployed ${IMAGE_TAG} to ${params.PROMOTE_TO.toUpperCase()}"
+        }
       }
     }
   }
