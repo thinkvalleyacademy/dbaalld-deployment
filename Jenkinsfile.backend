@@ -73,14 +73,18 @@ pipeline {
       }
     }
 
-    stage('Manual Approval for PREPROD') {
-      when {
-        expression { params.PROMOTE_TO == 'preprod' }
-      }
-      steps {
-        input message: "Promote image ${IMAGE_TAG} to PREPROD?"
-      }
-    }
+stage('Manual Approval for PREPROD') {
+  when {
+    expression { params.PROMOTE_TO == 'preprod' }
+  }
+  agent none
+  steps {
+    input(
+      message: "Promote image ${IMAGE_TAG} to PREPROD?",
+      ok: "Deploy to PREPROD"
+    )
+  }
+}
 
     stage('Deploy to PREPROD') {
       when {
