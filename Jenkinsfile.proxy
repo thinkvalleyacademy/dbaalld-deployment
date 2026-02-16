@@ -1,0 +1,66 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 15, unit: 'MINUTES')
+    timestamps()
+  }
+
+  parameters {
+    choice(
+      name: 'PROMOTE_TO',
+      choices: ['dev', 'preprod'],
+      description: 'Target environment'
+    )
+  }
+
+  environment {
+    APP_DIR = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+  }
+
+  stages {
+
+    stage('Docker Connectivity Test') {
+      steps {
+        sh 'docker ps'
+      }
+    }
+
+    stage('Deploy Reverse Proxy') {
+      steps {
+        script {
+
+          if (params.PROMOTE_TO == 'dev') {
+            sh """
+              cd ${APP_DIR}
+
+              docker compose \
+                --project-name dba-dev \
+                --env-file env/dev.env \
+                -f docker-compose.proxy.yml \
+                up -d --force-recreate
+            """
+            echo "Reverse proxy deployed to DEV"
+          }
+
+          if (params.PROMOTE_TO == 'preprod') {
+            sh """
+              cd ${APP_DIR}
+
+              docker compose \
+                --project-name dba-preprod \
+                --env-file env/preprod.env \
+                -f docker-compose.proxy.yml \
+                up -d --force-recreate
+            """
+            echo "Reverse proxy deployed to PREPROD"
+          }
+
+        }
+      }
+    }
+
+  }
+}
+
