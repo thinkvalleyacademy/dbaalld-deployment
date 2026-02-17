@@ -76,7 +76,7 @@ pipeline {
               TAG=${IMAGE_TAG} docker compose --env-file .env up -d
             """
 
-            sleep 20
+            sleep 30
 
             sh """
               curl -f http://localhost:${healthPort}/dba-alld/api/actuator/health
