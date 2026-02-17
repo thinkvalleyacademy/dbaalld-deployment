@@ -8,8 +8,7 @@ pipeline {
   }
 
   environment {
-    APP_PATH     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
-    DEPLOY_PATH  = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project/deploy/dev'
+    DEPLOY_PATH = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project/deploy/dev'
     DOCKER_BUILDKIT = '1'
   }
 
@@ -21,7 +20,7 @@ pipeline {
       }
     }
 
-    stage('Checkout Backend Source') {
+    stage('Checkout Source') {
       steps {
         git branch: 'main',
             url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
@@ -42,15 +41,17 @@ pipeline {
 
     stage('Build Backend Image') {
       steps {
-        sh """
-          docker build -t dba-backend:${env.IMAGE_TAG} .
-        """
+        dir('backend-src') {
+          sh """
+            docker build -t dba-backend:${env.IMAGE_TAG} .
+          """
+        }
       }
     }
 
     stage('Build Frontend Image') {
       steps {
-        dir("${env.APP_PATH}/frontend-src") {
+        dir('frontend-src') {
           sh """
             docker build -t dba-frontend:${env.IMAGE_TAG} .
           """
@@ -61,7 +62,7 @@ pipeline {
     stage('Deploy DEV') {
       steps {
         sh """
-          cd ${env.DEPLOY_PATH}
+          cd ${DEPLOY_PATH}
           TAG=${env.IMAGE_TAG} docker compose --env-file .env down --remove-orphans
           TAG=${env.IMAGE_TAG} docker compose --env-file .env up -d
         """
@@ -71,9 +72,7 @@ pipeline {
     stage('Health Check') {
       steps {
         sleep 25
-        sh """
-          curl -f http://localhost:5082/dba-alld/api/actuator/health
-        """
+        sh "curl -f http://localhost:5082/dba-alld/api/actuator/health"
       }
     }
   }
