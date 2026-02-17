@@ -40,11 +40,15 @@ pipeline {
       }
     }
 
-    stage('Build Backend Image') {
-      steps {
-        sh "docker build -t dba-backend:${IMAGE_TAG} ."
-      }
-    }
+
+
+stage('Build Backend Image') {
+  steps {
+    sh """
+      docker build -t dba-backend:${IMAGE_TAG} ${DEPLOY_ROOT}/backend-src
+    """
+  }
+}
 
     stage('Build Frontend Image') {
       steps {
