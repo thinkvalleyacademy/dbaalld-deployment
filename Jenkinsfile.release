@@ -16,16 +16,31 @@ pipeline {
   }
 
   environment {
-    ROOT = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    DEPLOY_ROOT = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
     DOCKER_BUILDKIT = '1'
   }
 
   stages {
 
-    stage('Checkout Source') {
+    stage('Clean Workspace') {
+      steps {
+        deleteDir()
+      }
+    }
+
+    stage('Checkout Backend Source (Fresh)') {
       steps {
         git branch: 'main',
             url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
+      }
+    }
+
+    stage('Verify Resources Exist') {
+      steps {
+        sh """
+          echo "Listing backend resources:"
+          ls -l src/main/resources/
+        """
       }
     }
 
@@ -41,12 +56,21 @@ pipeline {
       }
     }
 
-    stage('Build Images (Once)') {
+    stage('Build Backend Image') {
       steps {
         sh """
-          docker build -t dba-backend:${IMAGE_TAG} ${ROOT}/backend-src
-          docker build -t dba-frontend:${IMAGE_TAG} ${ROOT}/frontend-src
+          docker build -t dba-backend:${IMAGE_TAG} .
         """
+      }
+    }
+
+    stage('Build Frontend Image') {
+      steps {
+        dir("${DEPLOY_ROOT}/frontend-src") {
+          sh """
+            docker build -t dba-frontend:${IMAGE_TAG} .
+          """
+        }
       }
     }
 
@@ -54,10 +78,10 @@ pipeline {
       steps {
         script {
 
-          def deployPath = "${ROOT}/deploy/${params.TARGET}"
+          def deployPath = "${DEPLOY_ROOT}/deploy/${params.TARGET}"
           def healthPort = params.TARGET == 'dev' ? '5082' : '6082'
 
-          // Save current running image for rollback
+          // Capture previous tag for rollback
           def previousTag = sh(
             script: """
               docker ps --filter "name=${params.TARGET}-backend-1" \
