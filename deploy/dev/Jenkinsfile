@@ -1,0 +1,84 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 20, unit: 'MINUTES')
+    timestamps()
+  }
+
+  environment {
+    APP_PATH = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    DEPLOY_PATH = "${APP_PATH}/deploy/dev"
+    DOCKER_BUILDKIT = '1'
+  }
+
+  stages {
+
+    stage('Clean Workspace') {
+      steps {
+        deleteDir()
+      }
+    }
+
+    stage('Checkout Backend Source') {
+      steps {
+        git branch: 'main',
+            url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
+      }
+    }
+
+    stage('Generate Image Tag') {
+      steps {
+        script {
+          env.IMAGE_TAG = sh(
+            script: "git rev-parse --short HEAD",
+            returnStdout: true
+          ).trim()
+        }
+        echo "Building tag: ${IMAGE_TAG}"
+      }
+    }
+
+    stage('Build Backend Image') {
+      steps {
+        sh "docker build -t dba-backend:${IMAGE_TAG} ."
+      }
+    }
+
+    stage('Build Frontend Image') {
+      steps {
+        dir("${APP_PATH}/frontend-src") {
+          sh "docker build -t dba-frontend:${IMAGE_TAG} ."
+        }
+      }
+    }
+
+    stage('Deploy DEV') {
+      steps {
+        sh """
+          cd ${DEPLOY_PATH}
+          TAG=${IMAGE_TAG} docker compose --env-file .env down --remove-orphans
+          TAG=${IMAGE_TAG} docker compose --env-file .env up -d
+        """
+      }
+    }
+
+    stage('Health Check') {
+      steps {
+        sleep 20
+        sh "curl -f http://localhost:5082/dba-alld/api/actuator/health"
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "DEV deployment successful 🚀"
+    }
+    failure {
+      echo "DEV deployment failed ❌"
+    }
+  }
+}
+

@@ -1,0 +1,82 @@
+server {
+
+    # note: this server is multi user apps running. Dont run your application on port 80 or 443 
+
+	#listen 4082; #enable this when you want to run on IP:port with real domain
+    #listen 5082 ssl; #enable this when you want to run on IP:port with ssl (testing pourpose only)
+   
+    listen 4082;
+    listen [::]:4082;
+
+    server_name _;
+
+    client_max_body_size 50M;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    # ===============================
+    # FILES / IMAGES (ADD CONTEXT)
+    # ===============================
+    location /files/ {
+
+        # 🔑 ADD context path
+	    #rewrite ^/files/(.*)$ /dba-alld/files/$1 break;
+
+	proxy_pass http://backend:8081/dba-alld/files/;
+
+	# proxy_pass http://dbaalld-backend:8081;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_redirect off;
+    }
+
+    # ===============================
+    # API (OLD LOGIC — UNCHANGED)
+    # ===============================
+	
+location /api/ {
+    proxy_pass http://backend:8081/;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto https;
+
+    proxy_redirect off;
+}
+
+    # ===============================
+    # FRONTEND
+    # ===============================
+    location / {
+        proxy_pass http://frontend;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header X-Forwarded-Proto $scheme;
+
+	# 🔑 THESE TWO FIX CORS
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Port 443;
+
+	proxy_buffering off;
+        proxy_redirect off;
+    }
+
+    # ===============================
+    # SECURITY
+    # ===============================
+    location ~* \.(php|sh|exe|pl|cgi)$ {
+        deny all;
+        return 403;
+    }
+}
+
