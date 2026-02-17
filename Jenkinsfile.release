@@ -1,0 +1,114 @@
+pipeline {
+  agent any
+
+  options {
+    disableConcurrentBuilds()
+    timeout(time: 30, unit: 'MINUTES')
+    timestamps()
+  }
+
+  parameters {
+    choice(
+      name: 'TARGET',
+      choices: ['dev', 'preprod'],
+      description: 'Deploy target environment'
+    )
+  }
+
+  environment {
+    ROOT = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    DOCKER_BUILDKIT = '1'
+  }
+
+  stages {
+
+    stage('Checkout Source') {
+      steps {
+        git branch: 'main',
+            url: 'git@github.com:thinkvalleyacademy/DBA-SOFTWARE.git'
+      }
+    }
+
+    stage('Generate Image Tag') {
+      steps {
+        script {
+          env.IMAGE_TAG = sh(
+            script: "git rev-parse --short HEAD",
+            returnStdout: true
+          ).trim()
+        }
+        echo "Deploying image tag: ${IMAGE_TAG}"
+      }
+    }
+
+    stage('Build Images (Once)') {
+      steps {
+        sh """
+          docker build -t dba-backend:${IMAGE_TAG} ${ROOT}/backend-src
+          docker build -t dba-frontend:${IMAGE_TAG} ${ROOT}/frontend-src
+        """
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        script {
+
+          def deployPath = "${ROOT}/deploy/${params.TARGET}"
+          def healthPort = params.TARGET == 'dev' ? '5082' : '6082'
+
+          // Save current running image for rollback
+          def previousTag = sh(
+            script: """
+              docker ps --filter "name=${params.TARGET}-backend-1" \
+              --format "{{.Image}}" | awk -F: '{print \$2}'
+            """,
+            returnStdout: true
+          ).trim()
+
+          echo "Previous running tag: ${previousTag}"
+
+          try {
+
+            sh """
+              cd ${deployPath}
+              TAG=${IMAGE_TAG} docker compose --env-file .env down --remove-orphans
+              TAG=${IMAGE_TAG} docker compose --env-file .env up -d
+            """
+
+            sleep 20
+
+            sh """
+              curl -f http://localhost:${healthPort}/dba-alld/api/actuator/health
+            """
+
+            echo "Deployment successful to ${params.TARGET}"
+
+          } catch (Exception e) {
+
+            echo "Deployment failed! Rolling back..."
+
+            if (previousTag) {
+              sh """
+                cd ${deployPath}
+                TAG=${previousTag} docker compose --env-file .env up -d
+              """
+            }
+
+            error("Rollback executed. Deployment failed.")
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Release pipeline completed successfully 🚀"
+    }
+    failure {
+      echo "Release failed ❌"
+    }
+  }
+}
+
