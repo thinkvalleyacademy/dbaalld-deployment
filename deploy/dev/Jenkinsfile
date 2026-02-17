@@ -8,8 +8,8 @@ pipeline {
   }
 
   environment {
-    APP_PATH = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
-    DEPLOY_PATH = "${APP_PATH}/deploy/dev"
+    APP_PATH     = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project'
+    DEPLOY_PATH  = '/home/dbadev01/dba-dev-testing/deploy-dba_alld_project/deploy/dev'
     DOCKER_BUILDKIT = '1'
   }
 
@@ -36,24 +36,24 @@ pipeline {
             returnStdout: true
           ).trim()
         }
-        echo "Building tag: ${IMAGE_TAG}"
+        echo "Building tag: ${env.IMAGE_TAG}"
       }
     }
 
-
-
-stage('Build Backend Image') {
-  steps {
-    sh """
-      docker build -t dba-backend:${IMAGE_TAG} ${DEPLOY_ROOT}/backend-src
-    """
-  }
-}
+    stage('Build Backend Image') {
+      steps {
+        sh """
+          docker build -t dba-backend:${env.IMAGE_TAG} .
+        """
+      }
+    }
 
     stage('Build Frontend Image') {
       steps {
-        dir("${APP_PATH}/frontend-src") {
-          sh "docker build -t dba-frontend:${IMAGE_TAG} ."
+        dir("${env.APP_PATH}/frontend-src") {
+          sh """
+            docker build -t dba-frontend:${env.IMAGE_TAG} .
+          """
         }
       }
     }
@@ -61,17 +61,19 @@ stage('Build Backend Image') {
     stage('Deploy DEV') {
       steps {
         sh """
-          cd ${DEPLOY_PATH}
-          TAG=${IMAGE_TAG} docker compose --env-file .env down --remove-orphans
-          TAG=${IMAGE_TAG} docker compose --env-file .env up -d
+          cd ${env.DEPLOY_PATH}
+          TAG=${env.IMAGE_TAG} docker compose --env-file .env down --remove-orphans
+          TAG=${env.IMAGE_TAG} docker compose --env-file .env up -d
         """
       }
     }
 
     stage('Health Check') {
       steps {
-        sleep 20
-        sh "curl -f http://localhost:5082/dba-alld/api/actuator/health"
+        sleep 25
+        sh """
+          curl -f http://localhost:5082/dba-alld/api/actuator/health
+        """
       }
     }
   }
